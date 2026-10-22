@@ -9,7 +9,8 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: { origin: "*" },
+  maxHttpBufferSize: 1e8 // እስከ 100MB ፋይል እንዲያሳልፍ
 });
 
 // 1. Supabase Setup (ከ API በፊተ መሆን አለበት)

@@ -99,6 +99,12 @@
       <span>Demonstration</span>
     </button>
 
+    <!-- አዲሱ File Transfer በተን -->
+    <button class="tool-btn" onclick="openFileTransferModal()" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); border: 1px solid #c4b5fd; color: white;">
+      <i class="fa-solid fa-file-arrow-up"></i>
+      <span>Send File</span>
+    </button>
+
     <div class="toolbar-divider"></div>
 
     <!-- አዲሶቹ የ CRUD ማኔጅመንት አዝራሮች -->
@@ -297,6 +303,24 @@
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn-mini" onclick="closeMessageModal()" style="background:#475569;">ሰርዝ</button>
         <button class="btn-mini" onclick="sendMessageBroadcast()" style="background:#0284c7; font-weight:bold;">ላክ</button>
+      </div>
+    </div>
+  </div>
+
+<!-- FILE TRANSFER MODAL -->
+  <div class="mgmt-modal" id="fileTransferModal">
+    <div class="mgmt-card" style="max-width: 500px;">
+      <div class="mgmt-header">
+        <h2 style="color: #c4b5fd;"><i class="fa-solid fa-file-arrow-up"></i> ለተማሪዎች ፋይል መላኪያ (File Transfer)</h2>
+        <button onclick="closeFileTransferModal()" class="btn-delete" style="font-size: 16px; padding: 4px 10px;">✕</button>
+      </div>
+      <div style="background: #0f172a; padding: 20px; border-radius: 10px; border: 1px dashed #64748b; text-align: center;">
+        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 42px; color: #8b5cf6; margin-bottom: 10px; display:block;"></i>
+        <p style="font-size: 14px; margin-bottom: 15px;">PDF፣ የፈተና ጥያቄ ወይም ዶክመንት ይምረጡ</p>
+        <input type="file" id="fileToSend" style="color: white; margin-bottom: 15px;">
+        <button class="btn-action-add" style="background:#7c3aed; width:100%;" onclick="sendFileToStudents()">
+          <i class="fa-solid fa-paper-plane"></i> ለሁሉም ተማሪዎች ላክ (Broadcast File)
+        </button>
       </div>
     </div>
   </div>

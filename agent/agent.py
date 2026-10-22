@@ -9,34 +9,40 @@ import mss
 from PIL import Image
 
 # ----------------- ማስተካከያ (SETTINGS) -----------------
-# የ Codespaces የሰርቨርህ ዩአርኤል (URL)
 SERVER_URL = "https://symmetrical-fiesta-x56wx76jjjp5cp65g-3000.app.github.dev"
-DEVICE_NAME = "Windows Student PC"
+DEVICE_NAME = "Lab-1 Student PC"
 # -------------------------------------------------------
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=0, reconnection_delay=2)
 
 def execute_system_command(command, payload=None):
-    """ከ Master Dashboard የሚመጡ ትዕዛዞችን በዊንዶውስ ላይ መፈጸሚያ"""
+    """ከ Master Dashboard የሚመጡ አስተዳደራዊ ትዕዛዞችን ማስተናገጃ"""
     print(f"[*] ትዕዛዝ ደርሷል: {command}")
+    cmd = (command or "").upper()
     
-    if command == "lock":
+    if cmd == "LOCK":
+        # ስክሪን መቆለፍ
         ctypes.windll.user32.LockWorkStation()
         
-    elif command == "reboot":
+    elif cmd == "REBOOT":
         os.system("shutdown /r /t 5")
         
-    elif command == "poweroff" or command == "shutdown":
+    elif cmd == "POWER_OFF" or cmd == "POWEROFF":
         os.system("shutdown /s /t 5")
         
-    elif command == "message":
-        msg = payload.get("text", "ከአስተማሪ የተላከ መልዕክት") if payload else "ማሳሰቢያ ከአስተማሪ!"
-        threading.Thread(target=lambda: ctypes.windll.user32.MessageBoxW(0, msg, "Cloud-Veyon ማሳሰቢያ", 0x40 | 0x1)).start()
+    elif cmd == "MESSAGE":
+        msg = payload.get("message") or payload.get("text") or "ማሳሰቢያ ከአስተማሪ!"
+        # ለተጠቃሚው ግልጽ ማስታወሻ ማሳየት
+        threading.Thread(
+            target=lambda: ctypes.windll.user32.MessageBoxW(0, msg, "Cloud-Veyon Lab Alert", 0x40 | 0x1)
+        ).start()
 
 @sio.event
 def connect():
-    print("[✓] ከ Cloud-Veyon Dashboard ጋር በተሳካ ሁኔታ ተገናኝቷል!")
-    sio.emit('register-device', {
+    print("[✓] ከ Cloud-Veyon Dashboard ጋር ተገናኝቷል!")
+    # በ server.js ውስጥ ካለው 'device:register' ጋር የተጣጣመ
+    sio.emit('device:register', {
+        'deviceId': sio.sid,
         'name': DEVICE_NAME,
         'os': 'Windows',
         'battery': 100
@@ -44,7 +50,7 @@ def connect():
 
 @sio.event
 def disconnect():
-    print("[!] ግንኙነት ተቋርጧል! እንደገና በመሞከር ላይ...")
+    print("[!] ግንኙነት ተቋርጧል!")
 
 @sio.on('client:execute-command')
 def on_command(data):
@@ -53,21 +59,23 @@ def on_command(data):
     execute_system_command(cmd, payload)
 
 def stream_screen_worker():
-    """ስክሪኑን ያለማቋረጥ ፎቶ እያነሳ በጀርባ ለሰርቨሩ የሚልክ ተግባር"""
+    """የስክሪን ፍሬም በየሰከንዱ መላኪያ"""
     with mss.mss() as sct:
-        monitor = sct.monitors[1]  # ዋናው ስክሪን
+        monitor = sct.monitors[1]
         while True:
             if sio.connected:
                 try:
                     sct_img = sct.grab(monitor)
                     img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
-                    img.thumbnail((800, 450))
+                    img.thumbnail((640, 360))
+                    
                     buffer = io.BytesIO()
                     img.save(buffer, format="JPEG", quality=50)
                     
                     img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
                     formatted_base64 = f"data:image/jpeg;base64,{img_str}"
                     
+                    # ወደ ዳሽቦርዱ መላክ
                     sio.emit('client:stream-frame', {
                         'socketId': sio.sid,
                         'imageBase64': formatted_base64
@@ -77,6 +85,7 @@ def stream_screen_worker():
             time.sleep(0.3)
 
 if __name__ == "__main__":
+    print(f"--- Cloud-Veyon Student Service እየሰራ ነው ({DEVICE_NAME}) ---")
     stream_thread = threading.Thread(target=stream_screen_worker, daemon=True)
     stream_thread.start()
     

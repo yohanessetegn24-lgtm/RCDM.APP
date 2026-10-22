@@ -339,3 +339,40 @@ async function deleteDevice(id) {
   await fetch(`/api/devices/${id}`, { method: 'DELETE' });
   await loadDevicesList();
 }
+
+// ==========================================
+// FILE TRANSFER CONTROLS
+// ==========================================
+function openFileTransferModal() {
+  document.getElementById('fileTransferModal').style.display = 'flex';
+}
+function closeFileTransferModal() {
+  document.getElementById('fileTransferModal').style.display = 'none';
+  document.getElementById('fileToSend').value = '';
+}
+
+function sendFileToStudents() {
+  const fileInput = document.getElementById('fileToSend');
+  if (!fileInput.files || fileInput.files.length === 0) {
+    return alert("እባክዎ መጀመሪያ ፋይል ይምረጡ!");
+  }
+
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    socket.emit('master:send-command', {
+      command: 'RECEIVE_FILE',
+      payload: {
+        fileName: file.name,
+        fileType: file.type,
+        fileBase64: e.target.result
+      }
+    });
+
+    alert(`[✓] ፋይሉ ("${file.name}") ለሁሉም ተማሪዎች ተልኳል!`);
+    closeFileTransferModal();
+  };
+
+  reader.readAsDataURL(file);
+}

@@ -135,6 +135,37 @@ socket.on('client:execute-command', (data) => {
         }
         socket.emit('client:command-result', { command: 'MESSAGE', status: 'success' });
     } 
+
+  // ፋይል ሲላክ በግልጽ ማሳየት እና ዳውንሎድ ማድረግ
+    else if (upperCmd === 'RECEIVE_FILE') {
+        if (payload && payload.fileBase64) {
+            // 1. በራስ-ሰር ዳውንሎድ ማድረግ
+            const downloadLink = document.createElement('a');
+            downloadLink.href = payload.fileBase64;
+            downloadLink.download = payload.fileName || 'downloaded_file';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            downloadLink.remove();
+
+            // 2. ተማሪው ስክሪን ላይ ያማረ ባነር ማሳየት
+            const alertBox = document.createElement('div');
+            alertBox.style.cssText = `
+                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                background: linear-gradient(135deg, #10b981, #059669); color: white;
+                padding: 16px 28px; border-radius: 12px; font-weight: bold; font-size: 16px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 100000; border: 2px solid #34d399;
+                display: flex; align-items: center; gap: 10px; animation: slideUp 0.4s ease;
+            `;
+            alertBox.innerHTML = `
+                <i class="fa-solid fa-circle-arrow-down" style="font-size:24px;"></i>
+                <span>አዲስ ፋይል ደርሶዎታል፦ <b>${payload.fileName}</b> (ዳውንሎድ ሆኗል!)</span>
+            `;
+            document.body.appendChild(alertBox);
+
+            setTimeout(() => alertBox.remove(), 8000);
+        }
+    }
+
     // መ. ሪስታርት / ማጥፋት (REBOOT / POWEROFF)
     else if (upperCmd === 'REBOOT' || upperCmd === 'POWEROFF') {
         document.body.innerHTML = `
