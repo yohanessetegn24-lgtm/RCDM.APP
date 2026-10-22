@@ -208,3 +208,134 @@ async function startTeacherBroadcast() {
     console.error("Broadcast Error:", err);
   }
 }
+
+// ==========================================
+// CRUD OPERATIONS (USERS & DEVICES)
+// ==========================================
+
+// --- USERS MODAL CONTROLS ---
+async function openUsersModal() {
+  document.getElementById('usersModal').style.display = 'flex';
+  await loadUsersList();
+}
+function closeUsersModal() {
+  document.getElementById('usersModal').style.display = 'none';
+}
+
+async function loadUsersList() {
+  const tbody = document.getElementById('usersTableBody');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">በመጫን ላይ...</td></tr>';
+  try {
+    const res = await fetch('/api/users');
+    const users = await res.json();
+    tbody.innerHTML = '';
+    users.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${u.full_name}</b></td>
+        <td>${u.email}</td>
+        <td><span class="badge-role role-${u.role}">${u.role.toUpperCase()}</span></td>
+        <td><button class="btn-delete" onclick="deleteUser('${u.id}')"><i class="fa-solid fa-trash"></i> አጥፋ</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:red; text-align:center;">መጫን አልተቻለም!</td></tr>';
+  }
+}
+
+async function handleCreateUser(e) {
+  e.preventDefault();
+  const full_name = document.getElementById('userFullName').value.trim();
+  const email = document.getElementById('userEmail').value.trim();
+  const password = document.getElementById('userPassword').value.trim();
+  const role = document.getElementById('userRole').value;
+
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ full_name, email, password, role })
+  });
+
+  if (res.ok) {
+    alert("ተጠቃሚው በተሳካ ሁኔታ ተመዝግቧል! ✅");
+    document.getElementById('addUserForm').reset();
+    await loadUsersList();
+  } else {
+    alert("ተጠቃሚውን መመዝገብ አልተቻለም!");
+  }
+}
+
+async function deleteUser(id) {
+  if (!confirm("እርግጠኛ ነዎት ይህን ተጠቃሚ ማጥፋት ይፈልጋሉ?")) return;
+  await fetch(`/api/users/${id}`, { method: 'DELETE' });
+  await loadUsersList();
+}
+
+// --- DEVICES MODAL CONTROLS ---
+async function openDevicesModal() {
+  document.getElementById('devicesModal').style.display = 'flex';
+  await loadDevicesList();
+}
+function closeDevicesModal() {
+  document.getElementById('devicesModal').style.display = 'none';
+}
+
+async function loadDevicesList() {
+  const tbody = document.getElementById('devicesTableBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">በመጫን ላይ...</td></tr>';
+  try {
+    const res = await fetch('/api/devices');
+    const devs = await res.json();
+    tbody.innerHTML = '';
+    if (devs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">ምንም የተመዘገበ መሳሪያ የለም።</td></tr>';
+      return;
+    }
+    devs.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${d.device_name}</b></td>
+        <td><i class="fa-brands fa-${(d.os_type||'').toLowerCase()}"></i> ${d.os_type || 'Windows'}</td>
+        <td>${d.ip_address || '-'}</td>
+        <td><code>${d.mac_address || '-'}</code></td>
+        <td>${d.assigned_room || 'Main Lab'}</td>
+        <td><span style="color:${d.status==='online'?'#34d399':'#94a3b8'};">● ${d.status}</span></td>
+        <td><button class="btn-delete" onclick="deleteDevice('${d.id}')"><i class="fa-solid fa-trash"></i> አጥፋ</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">መጫን አልተቻለም!</td></tr>';
+  }
+}
+
+async function handleCreateDevice(e) {
+  e.preventDefault();
+  const device_name = document.getElementById('devName').value.trim();
+  const mac_address = document.getElementById('devMac').value.trim();
+  const ip_address = document.getElementById('devIp').value.trim();
+  const serial_number = document.getElementById('devSerial').value.trim();
+  const os_type = document.getElementById('devOs').value;
+  const assigned_room = document.getElementById('devRoom').value.trim();
+
+  const res = await fetch('/api/devices', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_name, mac_address, ip_address, serial_number, os_type, assigned_room })
+  });
+
+  if (res.ok) {
+    alert("መሳሪያው በተሳካ ሁኔታ ተመዝግቧል! ✅");
+    document.getElementById('addDeviceForm').reset();
+    await loadDevicesList();
+  } else {
+    alert("መሳሪያውን መመዝገብ አልተቻለም!");
+  }
+}
+
+async function deleteDevice(id) {
+  if (!confirm("ይህንን መሣሪያ ከሲስተሙ ማጥፋት ይፈልጋሉ?")) return;
+  await fetch(`/api/devices/${id}`, { method: 'DELETE' });
+  await loadDevicesList();
+}

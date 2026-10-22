@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud-Veyon | Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body {
+      background: radial-gradient(circle at top, #1e293b, #0f172a);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .login-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid #334155;
+      padding: 40px;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+    .logo-icon {
+      font-size: 48px;
+      color: #38bdf8;
+      margin-bottom: 15px;
+    }
+    h2 { font-size: 26px; margin-bottom: 8px; }
+    p { color: #94a3b8; font-size: 14px; margin-bottom: 25px; }
+    .input-group {
+      text-align: left;
+      margin-bottom: 18px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: white;
+      font-size: 15px;
+      outline: none;
+      transition: 0.3s;
+    }
+    .input-group input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    }
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+    .btn-login:hover { opacity: 0.9; transform: translateY(-2px); }
+    .error-msg {
+      color: #f87171;
+      font-size: 14px;
+      margin-top: 15px;
+      display: none;
+    }
+    .credentials-hint {
+      margin-top: 25px;
+      padding-top: 15px;
+      border-top: 1px solid #334155;
+      font-size: 12px;
+      color: #64748b;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    <i class="fa-solid fa-network-wired logo-icon"></i>
+    <h2>Cloud-Veyon</h2>
+    <p>የላብራቶሪ መቆጣጠሪያ ሲስተም</p>
+
+    <div class="input-group">
+      <label>ኢሜይል (Email)</label>
+      <input type="email" id="email" placeholder="user@veyon.com" required>
+    </div>
+
+    <div class="input-group">
+      <label>የይለፍ ቃል (Password)</label>
+      <input type="password" id="password" placeholder="••••••••" required>
+    </div>
+
+    <button class="btn-login" onclick="handleLogin()">ግባ (Sign In)</button>
+    <div id="errorBox" class="error-msg"></div>
+
+    
+
+  <script>
+    async function handleLogin() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errorBox = document.getElementById('errorBox');
+
+      if (!email || !password) {
+        errorBox.innerText = "እባክዎ ኢሜይል እና የይለፍ ቃል ያስገቡ!";
+        errorBox.style.display = "block";
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // የተጠቃሚውን መረጃ በ Browser ማከማቸት
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+          window.location.href = data.redirectUrl;
+        } else {
+          errorBox.innerText = data.message;
+          errorBox.style.display = "block";
+        }
+      } catch (err) {
+        errorBox.innerText = "ከሰርቨር ጋር መገናኘት አልተቻለም!";
+        errorBox.style.display = "block";
+      }
+    }
+  </script>
+</body>
+</html>
