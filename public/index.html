@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud-Veyon Master Dashboard</title>
+  
+  <!-- FontAwesome Icons (ለ Veyon አይከኖች) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <!-- =========================================
+       1. VEYON TOP RIBBON TOOLBAR
+       ========================================= -->
+  <div class="veyon-ribbon">
+    <button class="tool-btn active" id="btn-monitoring">
+      <i class="fa-solid fa-desktop" style="color: #38bdf8;"></i>
+      <span>Monitoring</span>
+    </button>
+
+   <button class="nav-btn" onclick="startTeacherBroadcast()" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid #38bdf8;">
+  <i class="fa-solid fa-chalkboard-user"></i>
+  <span>Demonstration</span>
+</button>
+
+    <button class="tool-btn" id="btn-lock" onclick="triggerBroadcast('LOCK')">
+      <i class="fa-solid fa-lock" style="color: #ef4444;"></i>
+      <span>Lock</span>
+    </button>
+
+    <button class="tool-btn" id="btn-unlock" onclick="triggerBroadcast('UNLOCK')">
+      <i class="fa-solid fa-lock-open" style="color: #22c55e;"></i>
+      <span>Unlock</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <button class="tool-btn" id="btn-message" onclick="openMessageModal()">
+      <i class="fa-solid fa-comment-dots" style="color: #facc15;"></i>
+      <span>Text Message</span>
+    </button>
+
+    <button class="tool-btn" id="btn-screenshot" onclick="triggerBroadcast('SCREENSHOT')">
+      <i class="fa-solid fa-camera" style="color: #a855f7;"></i>
+      <span>Screenshot</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <button class="tool-btn danger" id="btn-reboot" onclick="triggerBroadcast('REBOOT')">
+      <i class="fa-solid fa-rotate-right"></i>
+      <span>Reboot</span>
+    </button>
+
+    <button class="tool-btn danger" id="btn-power" onclick="triggerBroadcast('POWER_OFF')">
+      <i class="fa-solid fa-power-off"></i>
+      <span>Power Off</span>
+    </button>
+  </div>
+
+  <!-- =========================================
+       2. WORKSPACE & CCTV DEVICES GRID
+       ========================================= -->
+  <div class="workspace">
+    <div class="workspace-header">
+      <div>
+        <h2 style="font-size: 18px; color: #f8fafc;">🖥️ የተገናኙ መሳሪያዎች (Connected Devices)</h2>
+        <span style="font-size: 12px; color: #94a3b8;" id="devices-count">የተገኙ መሳሪያዎች፡ 0</span>
+      </div>
+      <div>
+        <button class="btn-mini" onclick="location.reload()" style="padding: 8px 14px;">
+          <i class="fa-solid fa-arrows-rotate"></i> አድስ (Refresh)
+        </button>
+      </div>
+    </div>
+
+    <!-- CCTV Devices Grid (መሳሪያዎች እዚህ ውስጥ በካርድ ይደረደራሉ) -->
+    <div class="devices-grid" id="devicesGrid">
+      <!-- መሳሪያ ካልተገኘ የሚታይ መልእክት -->
+      <div id="no-devices" style="grid-column: 1 / -1; text-align: center; padding: 60px; color: #64748b;">
+        <i class="fa-solid fa-laptop-code" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+        <h3>ገና ምንም መሳሪያ አልተገናኘም</h3>
+        <p style="font-size: 13px; margin-top: 6px;">በሌላ ታብ <b>/client.html</b> ን ሲከፍቱ መሳሪያዎች እዚህ ግሪድ ውስጥ ብቅ ይላሉ።</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================
+       3. MESSAGE POPUP MODAL (መልእክት መላኪያ ሳጥን)
+       ========================================= -->
+  <div class="modal-overlay" id="msgModal">
+    <div class="modal-card">
+      <h3 style="color: #38bdf8; margin-bottom: 10px;">💬 ወደ ተማሪዎች መልእክት ላክ</h3>
+      <textarea id="msgInput" placeholder="የመልእክት ጽሁፍ እዚህ ያስገቡ... (ለምሳሌ፡ ስራችሁን ጀምሩ!)"></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-mini" onclick="closeMessageModal()" style="background:#475569;">ሰርዝ</button>
+        <button class="btn-mini" onclick="sendMessageBroadcast()" style="background:#0284c7; font-weight:bold;">ላክ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Logic Script -->
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

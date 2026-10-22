@@ -1,0 +1,268 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #0b1329;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =========================================
+   1. የ VEYON TOP RIBBON TOOLBAR (የመሳሪያዎች ባር)
+   ========================================= */
+.veyon-ribbon {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-bottom: 2px solid #334155;
+  display: flex;
+  align-items: center;
+  padding: 8px 15px;
+  gap: 6px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.tool-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 75px;
+}
+
+.tool-btn i {
+  font-size: 20px;
+  margin-bottom: 5px;
+}
+
+.tool-btn span {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.tool-btn:hover {
+  background-color: #334155;
+  color: #38bdf8;
+  border-color: #475569;
+}
+
+.tool-btn.active {
+  background-color: #0284c7;
+  color: white;
+  border-color: #38bdf8;
+}
+
+.tool-btn.danger:hover {
+  background-color: #dc2626;
+  color: white;
+}
+
+.tool-btn.warning:hover {
+  background-color: #d97706;
+  color: white;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 40px;
+  background-color: #334155;
+  margin: 0 8px;
+}
+
+/* =========================================
+   2. የስራ ቦታ እና የ CCTV GRID ማሳያ (WORKSPACE)
+   ========================================= */
+.workspace {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #070d1e;
+}
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* የመሳሪያዎች ካርድ (Device Card) */
+.device-card {
+  background-color: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  transition: transform 0.2s, border-color 0.2s;
+  position: relative;
+}
+
+.device-card:hover {
+  transform: translateY(-4px);
+  border-color: #38bdf8;
+}
+
+.device-card.locked {
+  border-color: #ef4444;
+}
+
+/* የካርዱ ራስጌ (Header) */
+.card-header {
+  background-color: #0f172a;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+}
+
+.device-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #22c55e; /* Online */
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.status-dot.offline {
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.device-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: #f8fafc;
+}
+
+.device-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  display: flex;
+  gap: 8px;
+}
+
+/* የስክሪን ቅድመ-ዕይታ (CCTV Live Screen Preview) */
+.screen-preview {
+  height: 180px;
+  background-color: #020617;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.screen-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(220, 38, 38, 0.85);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.device-card.locked .lock-overlay {
+  display: flex;
+}
+
+/* የካርዱ ግርጌ (Card Footer Buttons) */
+.card-actions {
+  padding: 8px 12px;
+  background-color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #334155;
+}
+
+.btn-mini {
+  background: #334155;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-mini:hover {
+  background: #0284c7;
+}
+
+/* =========================================
+   3. MODAL DIALOGS (ለ Text Message ማሳያ)
+   ========================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 420px;
+}
+
+.modal-card textarea {
+  width: 100%;
+  height: 100px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 12px 0;
+  outline: none;
+  resize: none;
+}
