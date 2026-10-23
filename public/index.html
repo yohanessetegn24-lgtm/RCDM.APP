@@ -88,6 +88,11 @@
   <!-- =========================================
        1. VEYON TOP RIBBON TOOLBAR
        ========================================= -->
+      <!-- SMART BACK BUTTON -->
+      <button class="btn-mini" onclick="smartGoBack()" style="background: #1e293b; border: 1px solid #475569; padding: 6px 14px; display: flex; align-items: center; gap: 6px; color: #38bdf8; font-weight: bold; cursor: pointer;" title="ወደ ኋላ ተመለስ">
+        <i class="fa-solid fa-arrow-left"></i> ተመለስ (Back)
+      </button>
+
   <div class="veyon-ribbon">
     <button class="tool-btn active" id="btn-monitoring">
       <i class="fa-solid fa-desktop" style="color: #38bdf8;"></i>
@@ -148,32 +153,54 @@
     </button>
   </div>
 
+  <!-- አድሚኑ ወደ መምህሩ ክፍል መመልከቻ -->
+    <a href="/teacher.html" class="tool-btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: 1px solid #60a5fa; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+      <i class="fa-solid fa-chalkboard-user"></i>
+      <span>Teacher View</span>
+    </a>
+
+  <!-- አዲሱ LOGOUT አዝራር (በቀኝ በኩል አምሮ እንዲቀመጥ) -->
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 13px; color: #fbbf24; font-weight: bold;">
+        <i class="fa-solid fa-user-shield"></i> Admin
+      </span>
+      <button class="tool-btn danger" onclick="handleLogout()" style="background: #334155 !important; border: 1px solid #64748b !important; padding: 6px 14px; min-width: auto; height: 38px;">
+        <i class="fa-solid fa-arrow-right-from-bracket" style="color: #f87171;"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+
   <!-- =========================================
-       2. WORKSPACE & CCTV DEVICES GRID
+       2. ADMIN WORKSPACE: TEACHERS INSPECTION (የመምህራን ክፍል ክትትል)
        ========================================= -->
   <div class="workspace">
     <div class="workspace-header">
       <div>
-        <h2 style="font-size: 18px; color: #f8fafc;">🖥️ የተገናኙ መሳሪያዎች (Connected Devices)</h2>
-        <span style="font-size: 12px; color: #94a3b8;" id="devices-count">የተገኙ መሳሪያዎች፡ 0</span>
+        <h2 style="font-size: 20px; color: #f8fafc; display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-chalkboard-user" style="color: #38bdf8;"></i> የላብራቶሪ መምህራን ክፍሎች (Teachers Labs)
+        </h2>
+        <span style="font-size: 13px; color: #94a3b8;" id="teachers-count">የተመዘገቡ መምህራን፡ 0</span>
       </div>
-      <div>
-        <button class="btn-mini" onclick="location.reload()" style="padding: 8px 14px;">
-          <i class="fa-solid fa-arrows-rotate"></i> አድስ (Refresh)
+
+      <!-- መምህራን መፈለጊያ Search Bar -->
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div style="position: relative;">
+          <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 11px; color: #64748b;"></i>
+          <input type="text" id="teacherSearchInput" onkeyup="filterTeachers()" placeholder="መምህር በስም ፈልግ..." 
+                 style="padding: 8px 12px 8px 35px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: white; outline: none; width: 220px; font-size: 13px;">
+        </div>
+        <button class="btn-mini" onclick="loadTeachersList()" style="padding: 8px 14px;">
+          <i class="fa-solid fa-arrows-rotate"></i> አድስ
         </button>
       </div>
     </div>
 
-    <!-- CCTV Grid -->
-    <div class="devices-grid" id="devicesGrid">
-      <div id="no-devices" style="grid-column: 1 / -1; text-align: center; padding: 60px; color: #64748b;">
-        <i class="fa-solid fa-laptop-code" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
-        <h3>ገና ምንም መሳሪያ አልተገናኘም</h3>
-        <p style="font-size: 13px; margin-top: 6px;">በሌላ ታብ <b>/client.html</b> ን ሲከፍቱ መሳሪያዎች እዚህ ግሪድ ውስጥ ብቅ ይላሉ።</p>
-      </div>
+    <!-- የመምህራን ካርዶች መደርደሪያ Grid -->
+    <div class="devices-grid" id="teachersGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px 0;">
+      <!-- ጃቫስክሪፕት መምህራንን እዚህ ይደረድራቸዋል -->
     </div>
   </div>
-
+  
   <!-- =========================================
        3. USERS CRUD MANAGEMENT MODAL
        ========================================= -->
@@ -327,5 +354,23 @@
 
   <!-- Dashboard Logic Script -->
   <script src="js/dashboard.js"></script>
+  <script>
+    function handleLogout() {
+      // የተቀመጠውን የአድሚን ዳታ ከብራውዘር ማጽዳት
+      localStorage.removeItem('currentUser');
+      // በቀጥታ ወደ Login ገጽ መላክ
+      window.location.href = '/login.html';
+    }
+
+  function smartGoBack() {
+      // index.html ላይ እያለህ የትም እንዳይሄድ እዚያው እንዲረጋጋ ማድረግ
+      const currentPath = window.location.pathname;
+      if (currentPath === '/index.html' || currentPath === '/') {
+        console.log("አሁን በዋናው Admin ገጽ ላይ ነዎት።");
+        return; // ምንም አያደርግም፣ እዚያው ይቀራል!
+      }
+      window.location.href = '/index.html';
+    }
+  </script>
 </body>
 </html>

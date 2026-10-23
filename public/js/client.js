@@ -5,51 +5,51 @@ let streamInterval = null;
 
 const localVideo = document.getElementById('localVideo');
 const shareScreenBtn = document.getElementById('shareScreenBtn');
-const deviceNameInput = document.getElementById('deviceNameInput');
 const lockOverlay = document.getElementById('lockOverlay');
 const msgAlert = document.getElementById('msgAlert');
 const msgAlertText = document.getElementById('msgAlertText');
 
-// 1. ተማሪውን ወደ ሰርቨሩ ማስተዋወቅ (ትክክለኛው 'device:register')
+// የተማሪውን መረጃ ከ Login ማምጣት
+const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. የተማሪውን ስም እና Avatar በ Navbar ላይ ማሳየት
+    if (currentUser && currentUser.name) {
+        document.getElementById('studentDisplayName').innerText = currentUser.name;
+        document.getElementById('studentAvatarImg').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentUser.name)}`;
+    }
+});
+
+// 2. ተማሪውን ወደ ሰርቨሩ ማስተዋወቅ
 socket.on('connect', () => {
-    console.log("[✓] ከሰርቨር ጋር ተገናኝቷል! ID:", socket.id);
+    console.log("[✓] ተማሪ ከሰርቨር ጋር ተገናኘ ID:", socket.id);
     registerCurrentDevice();
 });
 
 function registerCurrentDevice() {
-    const name = deviceNameInput && deviceNameInput.value.trim() !== "" 
-                 ? deviceNameInput.value.trim() 
-                 : "የዮሐንስ ኮምፒውተር";
-    const osType = navigator.userAgent.includes("Windows") ? "Windows" : 
-                   navigator.userAgent.includes("Android") ? "Android" : "Windows";
+    const name = currentUser.name || "ተማሪ";
+    const osType = navigator.userAgent.includes("Windows") ? "Windows" : "Target Device";
+    
+    // የተማሪው መምህር ID (ከሌለው በነባሪ ለመምህሩ እንሰጠዋለን)
+    const teacherId = currentUser.teacherId || 'default_teacher';
 
-    // ሰርቨሩ የሚጠብቀው ትክክለኛ መረጃ
     const deviceInfo = {
         name: name,
         os: osType,
-        battery: 95,
-        deviceId: socket.id
+        battery: 100,
+        deviceId: socket.id,
+        teacherId: teacherId
     };
 
-    // ዋናው የሰርቨርህ Event ስም 'device:register' ነው!
     socket.emit('device:register', deviceInfo);
-    console.log("[*] መሣሪያው ተመዝግቧል:", deviceInfo);
+    console.log("[*] ተማሪው ወደ መምህሩ ክፍል ተመዝግቧል:", deviceInfo);
 }
 
-// የስም ማደሻ በተን ሲነካ
-function updateDeviceName() {
-    registerCurrentDevice();
-    alert("የመሳሪያው ስም ተቀይሯል! ✅");
-}
-
-// 2. ስክሪን ማንሳትና ማስተላለፍ (Screen Streaming)
+// 3. ስክሪን ማንሳትና ማስተላለፍ (Navbar Button)
 async function startScreenShare() {
     try {
         screenStream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-                cursor: "always",
-                frameRate: { ideal: 10, max: 15 }
-            },
+            video: { cursor: "always", frameRate: { ideal: 10, max: 15 } },
             audio: false
         });
 
@@ -59,24 +59,22 @@ async function startScreenShare() {
         }
 
         if (shareScreenBtn) {
-            shareScreenBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> ስክሪን እየተጋራ ነው (Active)';
+            shareScreenBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>ስክሪን እየተጋራ ነው</span>';
             shareScreenBtn.style.background = "#15803d";
         }
 
-        // በየ 300ms ፍሬም ወደ ዳሽቦርዱ መላክ
         if (streamInterval) clearInterval(streamInterval);
         streamInterval = setInterval(captureAndSendRealFrame, 300);
 
         screenStream.getVideoTracks()[0].onended = () => {
             if (shareScreenBtn) {
-                shareScreenBtn.innerHTML = '<i class="fa-solid fa-desktop"></i> እውነተኛ ስክሪን አጋራ (Start Screen Share)';
-                shareScreenBtn.style.background = "#16a34a";
+                shareScreenBtn.innerHTML = '<i class="fa-solid fa-desktop"></i> <span>ስክሪን አጋራ (Start Screen)</span>';
+                shareScreenBtn.style.background = "linear-gradient(135deg, #10b981, #059669)";
             }
             clearInterval(streamInterval);
         };
-
     } catch (err) {
-        console.error("Screen Share ስህተት:", err);
+        console.error("Screen Share Error: ", err);
     }
 }
 
@@ -87,126 +85,79 @@ function captureAndSendRealFrame() {
     canvas.width = 480;
     canvas.height = 270;
     const ctx = canvas.getContext('2d');
-
-    // ምስሉን ከቪዲዮው ገልብጦ ማንሳት
     ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
 
-    // ወደ Base64 ቀይሮ መላክ
     const imageBase64 = canvas.toDataURL('image/jpeg', 0.5);
-
-    // ሰርቨሩ መስመር 80 ላይ የሚጠብቀው 'client:stream-frame' ነው
     socket.emit('client:stream-frame', {
         socketId: socket.id,
         imageBase64: imageBase64
     });
 }
 
-// 3. ከ Master Dashboard የሚመጡ ትዕዛዞችን ማዳመጥ ('client:execute-command')
+// 4. ከ Dashboard የሚመጡ ትዕዛዞች ማስተናገጃ
 socket.on('client:execute-command', (data) => {
     const { command, payload } = data;
-    console.log("[*] ትዕዛዝ ደርሷል:", command, payload);
     const upperCmd = (command || "").toUpperCase();
 
-    // ሀ. ስክሪን መቆለፍ (LOCK)
     if (upperCmd === 'LOCK') {
         if (lockOverlay) lockOverlay.style.display = 'flex';
-        socket.emit('client:command-result', { command: 'LOCK', status: 'success' });
     } 
-    // ለ. ስክሪን መልቀቅ (UNLOCK)
     else if (upperCmd === 'UNLOCK') {
         if (lockOverlay) lockOverlay.style.display = 'none';
-        socket.emit('client:command-result', { command: 'UNLOCK', status: 'success' });
     } 
-    // ሐ. መልዕክት መቀበል (MESSAGE)
     else if (upperCmd === 'MESSAGE') {
-        const text = (payload && (payload.message || payload.text)) 
-                     ? (payload.message || payload.text) 
-                     : "ማሳሰቢያ ከአስተማሪ!";
-        
+        const text = (payload && (payload.message || payload.text)) ? (payload.message || payload.text) : "ማሳሰቢያ ከአስተማሪ!";
         if (msgAlert && msgAlertText) {
             msgAlertText.innerText = text;
             msgAlert.style.display = 'block';
-
-            setTimeout(() => {
-                msgAlert.style.display = 'none';
-            }, 6000);
+            setTimeout(() => { msgAlert.style.display = 'none'; }, 7000);
         } else {
             alert(text);
         }
-        socket.emit('client:command-result', { command: 'MESSAGE', status: 'success' });
-    } 
-
-  // ፋይል ሲላክ በግልጽ ማሳየት እና ዳውንሎድ ማድረግ
+    }
     else if (upperCmd === 'RECEIVE_FILE') {
         if (payload && payload.fileBase64) {
-            // 1. በራስ-ሰር ዳውንሎድ ማድረግ
             const downloadLink = document.createElement('a');
             downloadLink.href = payload.fileBase64;
-            downloadLink.download = payload.fileName || 'downloaded_file';
+            downloadLink.download = payload.fileName || 'file';
             document.body.appendChild(downloadLink);
             downloadLink.click();
             downloadLink.remove();
-
-            // 2. ተማሪው ስክሪን ላይ ያማረ ባነር ማሳየት
-            const alertBox = document.createElement('div');
-            alertBox.style.cssText = `
-                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-                background: linear-gradient(135deg, #10b981, #059669); color: white;
-                padding: 16px 28px; border-radius: 12px; font-weight: bold; font-size: 16px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 100000; border: 2px solid #34d399;
-                display: flex; align-items: center; gap: 10px; animation: slideUp 0.4s ease;
-            `;
-            alertBox.innerHTML = `
-                <i class="fa-solid fa-circle-arrow-down" style="font-size:24px;"></i>
-                <span>አዲስ ፋይል ደርሶዎታል፦ <b>${payload.fileName}</b> (ዳውንሎድ ሆኗል!)</span>
-            `;
-            document.body.appendChild(alertBox);
-
-            setTimeout(() => alertBox.remove(), 8000);
+            alert(`📁 ከአስተማሪው አዲስ ፋይል ደርሶዎታል፦ "${payload.fileName}"`);
         }
     }
-
-    // መ. ሪስታርት / ማጥፋት (REBOOT / POWEROFF)
-    else if (upperCmd === 'REBOOT' || upperCmd === 'POWEROFF') {
+    else if (upperCmd === 'START_BROADCAST') {
+        const overlay = getOrCreateBroadcastOverlay();
+        overlay.style.display = 'flex';
+    } 
+    else if (upperCmd === 'STOP_BROADCAST') {
+        const overlay = document.getElementById('broadcastOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+    else if (upperCmd === 'REBOOT') {
+        location.reload();
+    }
+    else if (upperCmd === 'POWER_OFF' || upperCmd === 'POWEROFF') {
         document.body.innerHTML = `
-            <div style="background:#020617; color:#ef4444; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:sans-serif;">
+            <div style="background:#000; color:#334155; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                 <i class="fa-solid fa-power-off" style="font-size:70px; margin-bottom:20px;"></i>
-                <h1 style="font-size:28px;">ኮምፒውተሩ እየጠፋ ነው...</h1>
+                <h2>Power Off</h2>
             </div>
         `;
-        socket.emit('client:command-result', { command: upperCmd, status: 'success' });
-        setTimeout(() => location.reload(), 5000);
     }
 });
 
-// ==========================================
-// 4. የአስተማሪውን Demonstration ስክሪን ማሳያ
-// ==========================================
 function getOrCreateBroadcastOverlay() {
   let overlay = document.getElementById('broadcastOverlay');
   if (!overlay) {
     overlay = document.createElement('div');
     overlay.id = 'broadcastOverlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #020617;
-      z-index: 999998;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 10px;
-      box-sizing: border-box;
-    `;
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#020617; z-index:999998; display:flex; flex-direction:column; align-items:center; justify-content:center;';
     overlay.innerHTML = `
-      <div style="background: #0284c7; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-        <i class="fa-solid fa-chalkboard-user"></i> የአስተማሪው ገለጻ በቀጥታ (Live Demonstration)
+      <div style="background:#0284c7; color:white; padding:8px 20px; border-radius:20px; margin-bottom:12px; font-weight:bold;">
+        📡 የአስተማሪው ገለጻ በቀጥታ (Demonstration Mode)
       </div>
-      <img id="broadcastViewImg" style="width: 95vw; height: 85vh; object-fit: contain; border: 2px solid #38bdf8; border-radius: 8px; background: #000;" />
+      <img id="broadcastViewImg" style="max-width:96vw; max-height:86vh; border:2px solid #38bdf8; border-radius:8px;" />
     `;
     document.body.appendChild(overlay);
   }
@@ -217,17 +168,5 @@ socket.on('master:broadcast-frame', (data) => {
   const overlay = getOrCreateBroadcastOverlay();
   overlay.style.display = 'flex';
   const img = document.getElementById('broadcastViewImg');
-  if (img && data && data.imageBase64) {
-    img.src = data.imageBase64;
-  }
-});
-
-socket.on('client:execute-command', (data) => {
-  if (data.command === 'START_BROADCAST') {
-    const overlay = getOrCreateBroadcastOverlay();
-    overlay.style.display = 'flex';
-  } else if (data.command === 'STOP_BROADCAST') {
-    const overlay = document.getElementById('broadcastOverlay');
-    if (overlay) overlay.style.display = 'none';
-  }
+  if (img) img.src = data.imageBase64;
 });

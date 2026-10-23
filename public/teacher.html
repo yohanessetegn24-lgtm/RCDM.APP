@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud-Veyon | Teacher Dashboard</title>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    /* TEACHER DASHBOARD SPECIAL STYLES */
+    .teacher-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e3a8a;
+      color: #93c5fd;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      border: 1px solid #3b82f6;
+    }
+    .btn-file-transfer { 
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important; 
+      border: 1px solid #c4b5fd !important; 
+      color: white !important; 
+    }
+    .mgmt-modal {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; z-index: 10000;
+    }
+    .mgmt-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 16px;
+      width: 90%; max-width: 750px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.7); color: white;
+    }
+    .mgmt-header {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px;
+    }
+    .btn-action-add {
+      background: #0284c7; color: white; border: none; padding: 10px;
+      border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;
+    }
+    .btn-action-add:hover { background: #0369a1; }
+    .btn-delete { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+    .btn-delete:hover { background: #dc2626; }
+    
+    .mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+    .mgmt-table th, .mgmt-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #334155; }
+    .mgmt-table th { background: #0f172a; color: #94a3b8; }
+    .mgmt-table tr:hover { background: rgba(51, 65, 85, 0.5); }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================
+       1. TEACHER TOP RIBBON
+       ========================================= -->
+       <!-- SMART BACK BUTTON -->
+      <button class="btn-mini" onclick="smartGoBack()" style="background: #1e293b; border: 1px solid #475569; padding: 6px 14px; display: flex; align-items: center; gap: 6px; color: #38bdf8; font-weight: bold; cursor: pointer;" title="ወደ ኋላ ተመለስ">
+        <i class="fa-solid fa-arrow-left"></i> ተመለስ (Back)
+      </button>
+
+  <div class="veyon-ribbon">
+    <button class="tool-btn active" id="btn-monitoring">
+      <i class="fa-solid fa-desktop" style="color: #38bdf8;"></i>
+      <span>Monitoring</span>
+    </button>
+
+    <button class="tool-btn" onclick="startTeacherBroadcast()" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid #38bdf8; color: white;">
+      <i class="fa-solid fa-chalkboard-user"></i>
+      <span>Demonstration</span>
+    </button>
+
+    <button class="tool-btn btn-file-transfer" onclick="openFileTransferModal()">
+      <i class="fa-solid fa-file-arrow-up"></i>
+      <span>Send File</span>
+    </button>
+
+    <!-- ተማሪ መመዝገቢያ በተን በክብር በ Toolbar ላይ -->
+    <button class="tool-btn" onclick="openStudentModal()" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: 1px solid #fbbf24; color: white;">
+      <i class="fa-solid fa-user-graduate"></i>
+      <span>Students CRUD</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <button class="tool-btn" id="btn-lock" onclick="triggerBroadcast('LOCK')">
+      <i class="fa-solid fa-lock" style="color: #ef4444;"></i>
+      <span>Lock</span>
+    </button>
+
+    <button class="tool-btn" id="btn-unlock" onclick="triggerBroadcast('UNLOCK')">
+      <i class="fa-solid fa-lock-open" style="color: #22c55e;"></i>
+      <span>Unlock</span>
+    </button>
+
+    <button class="tool-btn" id="btn-message" onclick="openMessageModal()">
+      <i class="fa-solid fa-comment-dots" style="color: #facc15;"></i>
+      <span>Message</span>
+    </button>
+
+    <div class="toolbar-divider"></div>
+
+    <button class="tool-btn danger" id="btn-reboot" onclick="triggerBroadcast('REBOOT')">
+      <i class="fa-solid fa-rotate-right"></i>
+      <span>Reboot</span>
+    </button>
+
+    <button class="tool-btn danger" id="btn-power" onclick="triggerBroadcast('POWER_OFF')">
+      <i class="fa-solid fa-power-off"></i>
+      <span>Power Off</span>
+    </button>
+
+    
+
+    <!-- የመምህሩ መለያ ባጅ እና መውጫ -->
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <div class="teacher-badge">
+        <i class="fa-solid fa-graduation-cap"></i> <span id="teacherNameDisplay">መምህር</span>
+      </div>
+      <button class="btn-mini" onclick="logoutUser()" style="background: #334155; padding: 6px 12px;">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> ውጣ
+      </button>
+    </div>
+  </div>
+
+  <!-- =========================================
+       2. WORKSPACE & CCTV DEVICES GRID
+       ========================================= -->
+  <div class="workspace">
+    <div class="workspace-header">
+      <div>
+        <h2 style="font-size: 18px; color: #f8fafc;">👨‍🏫 የተማሪዎች ማያ ገጽ (Classroom Monitoring)</h2>
+        <span style="font-size: 12px; color: #94a3b8;" id="devices-count">የተገኙ ተማሪዎች፡ 0</span>
+      </div>
+      <div>
+        <button class="btn-mini" onclick="location.reload()" style="padding: 8px 14px;">
+          <i class="fa-solid fa-arrows-rotate"></i> አድስ (Refresh)
+        </button>
+      </div>
+    </div>
+
+    <!-- CCTV Grid -->
+    <div class="devices-grid" id="devicesGrid">
+      <div id="no-devices" style="grid-column: 1 / -1; text-align: center; padding: 60px; color: #64748b;">
+        <i class="fa-solid fa-laptop-code" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+        <h3>ገና ምንም ተማሪ አልተገናኘም</h3>
+        <p style="font-size: 13px; margin-top: 6px;">ተማሪዎች በ <b>/client.html</b> በኩል ሲገቡ ማያ ገጻቸው እዚህ ይታያል።</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================
+       3. STUDENTS FULL CRUD MODAL (CREATE, READ, UPDATE, DELETE)
+       ========================================= -->
+  <div class="mgmt-modal" id="studentModal">
+    <div class="mgmt-card">
+      <div class="mgmt-header">
+        <h2 style="color: #38bdf8; font-size: 20px; display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-user-graduate"></i> የኔ ክፍል ተማሪዎች ማኔጅመንት (Students CRUD)
+        </h2>
+        <button onclick="closeStudentModal()" class="btn-delete" style="font-size: 16px;">✕</button>
+      </div>
+
+      <!-- ተማሪ መመዝገቢያ / ማስተካከያ ፎርም -->
+      <form id="studentCrudForm" onsubmit="handleSaveStudent(event)" style="background: #0f172a; padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155;">
+        <input type="hidden" id="editStudentId">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">ሙሉ ስም</label>
+            <input type="text" id="studName" placeholder="አበበ ከበደ" required style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 6px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">ኢሜይል</label>
+            <input type="email" id="studEmail" placeholder="student@school.com" required style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 6px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">የይለፍ ቃል</label>
+            <input type="password" id="studPassword" placeholder="••••••••" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 6px; box-sizing: border-box;">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" id="saveStudentBtn" class="btn-action-add" style="flex: 1;">
+            <i class="fa-solid fa-plus"></i> አዲስ ተማሪ መዝግብ (Create)
+          </button>
+          <button type="button" id="cancelEditBtn" onclick="resetStudentForm()" style="display:none; padding: 10px 20px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer;">
+            ሰርዝ
+          </button>
+        </div>
+      </form>
+
+      <!-- የተመዘገቡ ተማሪዎች ዝርዝር ሠንጠረዥ -->
+      <h3 style="font-size: 14px; color: #cbd5e1; margin-bottom: 8px;">📋 በክፍልዎ ውስጥ ያሉ ተማሪዎች፦</h3>
+      <table class="mgmt-table">
+        <thead>
+          <tr>
+            <th>ተማሪ</th>
+            <th>ኢሜይል</th>
+            <th>የይለፍ ቃል</th>
+            <th style="text-align: center;">ድርጊት (Actions)</th>
+          </tr>
+        </thead>
+        <tbody id="myStudentsList">
+          <!-- ጃቫስክሪፕት እዚህ ይሞላዋል -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- =========================================
+       4. FILE TRANSFER MODAL
+       ========================================= -->
+  <div class="mgmt-modal" id="fileTransferModal">
+    <div class="mgmt-card" style="max-width: 500px;">
+      <div class="mgmt-header">
+        <h2 style="color: #c4b5fd;"><i class="fa-solid fa-file-arrow-up"></i> ለተማሪዎች ፋይል መላኪያ</h2>
+        <button onclick="closeFileTransferModal()" class="btn-delete">✕</button>
+      </div>
+      <div style="background: #0f172a; padding: 20px; border-radius: 10px; border: 1px dashed #64748b; text-align: center;">
+        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 42px; color: #8b5cf6; margin-bottom: 10px; display:block;"></i>
+        <p style="font-size: 14px; margin-bottom: 15px;">የፈተና ጥያቄ፣ ዶክመንት ወይም PDF ይምረጡ</p>
+        <input type="file" id="fileToSend" style="color: white; margin-bottom: 15px;">
+        <button class="btn-action-add" style="background:#7c3aed; width: 100%;" onclick="sendFileToStudents()">
+          <i class="fa-solid fa-paper-plane"></i> ለተማሪዎች ላክ (Send File)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================
+       5. MESSAGE POPUP MODAL
+       ========================================= -->
+  <div class="modal-overlay" id="msgModal">
+    <div class="modal-card">
+      <h3 style="color: #38bdf8; margin-bottom: 10px;">💬 ወደ ተማሪዎች ማሳሰቢያ ላክ</h3>
+      <textarea id="msgInput" placeholder="የማሳሰቢያ ጽሁፍ እዚህ ያስገቡ..."></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-mini" onclick="closeMessageModal()" style="background:#475569;">ሰርዝ</button>
+        <button class="btn-mini" onclick="sendMessageBroadcast()" style="background:#0284c7; font-weight:bold;">ላክ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Dashboard Engine Script -->
+  <script src="js/dashboard.js"></script>
+
+  <!-- TEACHER SPECIFIC LOGIC (AUTH, ONLINE SOCKET, STUDENTS CRUD) -->
+  <script>
+    const currentTeacher = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+    // 1. መምህሩ ገጹን እንደከፈተ ወዲያውኑ 🟢 ONLINE መሆኑን ለሰርቨር ማሳወቅ
+    if (currentTeacher && currentTeacher.id) {
+      socket.emit('master:join', { teacherId: currentTeacher.id, role: 'teacher' });
+    }
+
+    // ስሙን ማሳየት
+    if (currentTeacher && currentTeacher.name) {
+      document.getElementById('teacherNameDisplay').innerText = currentTeacher.name;
+    }
+
+    function logoutUser() {
+      localStorage.removeItem('currentUser');
+      window.location.href = '/login.html';
+    }
+
+    // 2. STUDENTS FULL CRUD CONTROLS
+    let myClassStudents = [];
+
+    function openStudentModal() {
+      document.getElementById('studentModal').style.display = 'flex';
+      loadMyStudents();
+    }
+    function closeStudentModal() {
+      document.getElementById('studentModal').style.display = 'none';
+      resetStudentForm();
+    }
+
+    async function loadMyStudents() {
+      const tbody = document.getElementById('myStudentsList');
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">በመጫን ላይ...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/teacher/students/${currentTeacher.id}`);
+        myClassStudents = await res.json();
+        tbody.innerHTML = '';
+
+        if (!myClassStudents || myClassStudents.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:15px;">ምንም የተመዘገበ ተማሪ የለም</td></tr>';
+          return;
+        }
+
+        myClassStudents.forEach(s => {
+          const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(s.full_name)}`;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <img src="${avatarUrl}" style="width:30px; height:30px; border-radius:50%; background:#0f172a; border:1px solid #38bdf8;">
+                <b>${s.full_name}</b>
+              </div>
+            </td>
+            <td>${s.email}</td>
+            <td><code>••••••••</code></td>
+            <td style="text-align:center; display:flex; justify-content:center; gap:6px;">
+              <button class="btn-mini" onclick="startEditStudent('${s.id}')" style="background:#0284c7; padding:4px 8px; font-size:11px;">
+                <i class="fa-solid fa-pen"></i> አድስ
+              </button>
+              <button class="btn-delete" onclick="deleteStudent('${s.id}')" style="padding:4px 8px; font-size:11px;">
+                <i class="fa-solid fa-trash"></i> አጥፋ
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:red; text-align:center;">መጫን አልተቻለም!</td></tr>';
+      }
+    }
+
+    async function handleSaveStudent(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editStudentId').value;
+      const full_name = document.getElementById('studName').value.trim();
+      const email = document.getElementById('studEmail').value.trim();
+      const password = document.getElementById('studPassword').value.trim();
+
+      if (editId) {
+        // UPDATE
+        const res = await fetch(`/api/teacher/students/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name, email, password })
+        });
+        if (res.ok) {
+          alert("የተማሪው መረጃ ተስተካክሏል! ✅");
+          resetStudentForm();
+          loadMyStudents();
+        } else {
+          const errData = await res.json();
+          alert(errData.error || "ማስተካከል አልተቻለም!");
+        }
+      } else {
+        // CREATE
+        if (!password) return alert("እባክዎ የይለፍ ቃል ያስገቡ!");
+        const res = await fetch('/api/teacher/students', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name, email, password, teacher_id: currentTeacher.id })
+        });
+        if (res.ok) {
+          alert("ተማሪው ወደ ክፍልዎ ተመዝግቧል! ✅");
+          resetStudentForm();
+          loadMyStudents();
+        } else {
+          const errData = await res.json();
+          alert(errData.error || "መመዝገብ አልተቻለም!");
+        }
+      }
+    }
+
+    function startEditStudent(id) {
+      const student = myClassStudents.find(s => s.id === id);
+      if (!student) return;
+
+      document.getElementById('editStudentId').value = student.id;
+      document.getElementById('studName').value = student.full_name;
+      document.getElementById('studEmail').value = student.email;
+      document.getElementById('studPassword').value = '';
+      document.getElementById('studPassword').placeholder = 'አዲስ ለመቀየር ብቻ ጻፉ';
+
+      const saveBtn = document.getElementById('saveStudentBtn');
+      saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> መረጃውን አድስ (Save Changes)';
+      saveBtn.style.background = '#10b981';
+      document.getElementById('cancelEditBtn').style.display = 'block';
+    }
+
+    function resetStudentForm() {
+      document.getElementById('studentCrudForm').reset();
+      document.getElementById('editStudentId').value = '';
+      document.getElementById('studPassword').placeholder = '••••••••';
+      const saveBtn = document.getElementById('saveStudentBtn');
+      saveBtn.innerHTML = '<i class="fa-solid fa-plus"></i> አዲስ ተማሪ መዝግብ (Create)';
+      saveBtn.style.background = '#0284c7';
+      document.getElementById('cancelEditBtn').style.display = 'none';
+    }
+
+    async function deleteStudent(id) {
+      if (!confirm("እርግጠኛ ነዎት ይህን ተማሪ ከክፍልዎ ማጥፋት ይፈልጋሉ?")) return;
+      await fetch(`/api/teacher/students/${id}`, { method: 'DELETE' });
+      loadMyStudents();
+    }
+    function smartGoBack() {
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+      // 1. የገባው ሰው መምህር (Teacher) ከሆነ፡ ከ teacher.html ወደ ኋላ መሄድ አይችልም!
+      if (user.role === 'teacher') {
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('teacher.html')) {
+          console.log("መምህሩ በዋናው ገጹ ላይ ይገኛል፤ ወደ አድሚን ማለፍ አይቻልም።");
+          return; // እዚያው ይረጋጋል! ወደ አድሚን አይሄድም!
+        }
+        window.location.href = '/teacher.html';
+        return;
+      }
+
+      
+    }
+  </script>
+</body>
+</html>

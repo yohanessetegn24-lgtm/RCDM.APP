@@ -3,169 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Client Device Simulator (ተማሪ / ስልክ)</title>
+  <title>Cloud-Veyon | Student Portal</title>
+  
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="/socket.io/socket.io.js"></script>
+
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #0f172a;
+      background: #090d16;
       color: white;
-      margin: 0;
-      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 1. TOP NAVBAR */
+    .student-navbar {
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      font-size: 24px;
+      color: #38bdf8;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    /* NAVBAR CONTROLS */
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .btn-share-nav {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: 1px solid #34d399;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: 0.2s;
+    }
+    .btn-share-nav:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* STUDENT PROFILE IN NAVBAR */
+    .student-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #1e293b;
+      padding: 5px 14px 5px 8px;
+      border-radius: 30px;
+      border: 1px solid #334155;
+    }
+    .student-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #0f172a;
+      border: 1.5px solid #38bdf8;
+    }
+    .student-meta {
+      text-align: left;
+    }
+    .student-meta .name {
+      font-size: 13px;
+      font-weight: bold;
+      color: #f8fafc;
+      display: block;
+    }
+    .student-meta .status {
+      font-size: 11px;
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-logout {
+      background: #374151;
+      border: 1px solid #4b5563;
+      color: #f87171;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: 0.2s;
+    }
+    .btn-logout:hover { background: #4b5563; }
+
+    /* 2. MAIN WORKSPACE */
+    .student-workspace {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      padding: 40px 20px;
       text-align: center;
     }
-    .device-box {
-      background: #1e293b;
-      padding: 30px;
+    .session-card {
+      background: #111827;
+      border: 1px solid #1f2937;
       border-radius: 16px;
-      border: 1px solid #334155;
-      max-width: 420px;
+      padding: 40px;
+      max-width: 500px;
       width: 100%;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #064e3b;
-      color: #34d399;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: bold;
-      margin-bottom: 20px;
-    }
-    input {
-      width: 90%;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      background: #0f172a;
-      color: white;
-      font-size: 14px;
-      margin-bottom: 12px;
-      text-align: center;
-    }
-    button {
-      background: #0284c7;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      width: 90%;
-      margin-bottom: 10px;
-      transition: 0.2s;
-    }
-    button:hover { background: #0369a1; }
-
-    .btn-share {
-      background: #16a34a !important;
-    }
-    .btn-share:hover { background: #15803d !important; }
-
-    /* =========================================
-       1. ሙሉ ስክሪን ቆላፊ መጋረጃ (LOCK OVERLAY)
-       ========================================= */
-    #lockOverlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(220, 38, 38, 0.96);
-      color: white;
-      display: none;
-      flex-direction: column;
+    .pulse-radar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.1);
+      display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 999999;
-      backdrop-filter: blur(8px);
-    }
-    #lockOverlay i {
-      font-size: 90px;
-      margin-bottom: 20px;
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
+      margin: 0 auto 20px;
+      border: 2px solid #38bdf8;
+      font-size: 32px;
+      color: #38bdf8;
     }
 
     /* =========================================
-       2. መልእክት ማሳያ ሳጥን (TEXT MESSAGE MODAL)
+       LOCK & ALERTS
        ========================================= */
-    #msgAlert {
-      position: fixed;
-      top: 25px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #facc15;
-      color: #0f172a;
-      padding: 16px 28px;
-      border-radius: 12px;
-      font-weight: bold;
-      font-size: 17px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-      display: none;
-      z-index: 100000;
-      border: 2px solid #ca8a04;
-      animation: slideDown 0.4s ease;
+    #lockOverlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(185, 28, 28, 0.96); color: white; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      z-index: 999999; backdrop-filter: blur(8px);
     }
-    @keyframes slideDown {
-      from { top: -60px; opacity: 0; }
-      to { top: 25px; opacity: 1; }
+    #msgAlert {
+      position: fixed; top: 25px; left: 50%; transform: translateX(-50%);
+      background: #facc15; color: #0f172a; padding: 16px 28px; border-radius: 12px;
+      font-weight: bold; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      display: none; z-index: 100000; border: 2px solid #ca8a04;
     }
   </style>
 </head>
 <body>
 
-  <!-- ስክሪን ሲቆለፍ የሚወጣ ሙሉ መጋረጃ -->
+      <!-- SMART BACK BUTTON -->
+      <button class="btn-mini" onclick="smartGoBack()" style="background: #1e293b; border: 1px solid #475569; padding: 6px 14px; display: flex; align-items: center; gap: 6px; color: #38bdf8; font-weight: bold; cursor: pointer;" title="ወደ ኋላ ተመለስ">
+        <i class="fa-solid fa-arrow-left"></i> ተመለስ (Back)
+      </button>
+
+  <header class="student-navbar">
+    <div class="brand-section">
+      <i class="fa-solid fa-graduation-cap brand-logo"></i>
+      <span class="brand-title">Cloud-Veyon <span style="font-weight: normal; color: #94a3b8;">| የተማሪ ፖርታል</span></span>
+    </div>
+
+    <div class="nav-actions">
+      <!-- ስክሪን ማጋሪያ በተን በ Navbar ላይ -->
+      <button id="shareScreenBtn" class="btn-share-nav" onclick="startScreenShare()">
+        <i class="fa-solid fa-desktop"></i>
+        <span>ስክሪን አጋራ (Start Screen)</span>
+      </button>
+
+      <!-- የተማሪው Profile Avatar እና ስም -->
+      <div class="student-profile">
+        <img id="studentAvatarImg" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student" class="student-avatar" alt="Profile">
+        <div class="student-meta">
+          <span class="name" id="studentDisplayName">ተማሪ</span>
+          <span class="status"><i class="fa-solid fa-circle" style="font-size: 8px;"></i> የተገናኘ</span>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <button class="btn-logout" onclick="logoutStudent()" title="ውጣ">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. WORKSPACE BODY -->
+  <main class="student-workspace">
+    <div class="session-card">
+      <div class="pulse-radar">
+        <i class="fa-solid fa-chalkboard-user"></i>
+      </div>
+      <h2 style="font-size: 22px; margin-bottom: 8px; color: #f8fafc;">የላብራቶሪ ክፍለ-ጊዜ (Live Lab Session)</h2>
+      <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">ኮምፒውተርዎ ከመምህሩ ክፍል ጋር በተሳካ ሁኔታ ተገናኝቷል።</p>
+      
+      <div style="background: #1e293b; padding: 12px; border-radius: 8px; font-size: 13px; color: #cbd5e1; border: 1px solid #334155;">
+        💡 ከላይ <b>"ስክሪን አጋራ"</b> የሚለውን ተጭነው ስክሪንዎን ሲመርጡ ለመምህሩ በቀጥታ ይታያል።
+      </div>
+    </div>
+  </main>
+
+  <!-- በድብቅ ፍሬም የሚይዘው ቪዲዮ -->
+  <video id="localVideo" autoplay playsinline muted style="position: absolute; opacity: 0; pointer-events: none; z-index: -1; width: 640px; height: 360px;"></video>
+
+  <!-- ስክሪን መቆለፊያ -->
   <div id="lockOverlay">
-    <i class="fa-solid fa-lock"></i>
-    <h1 style="margin: 0; font-size: 36px;">ስክሪኑ ተቆልፏል!</h1>
-    <p style="font-size: 18px; margin-top: 12px; color: #fee2e2;">ይህ ኮምፒውተር/ስልክ በአስተዳዳሪው ታግዷል።</p>
+    <i class="fa-solid fa-lock" style="font-size: 80px; margin-bottom: 20px;"></i>
+    <h1 style="font-size: 32px;">ስክሪኑ ተቆልፏል!</h1>
+    <p style="font-size: 16px; margin-top: 10px; color: #fee2e2;">ትምህርቱን በትኩረት ይከታተሉ።</p>
   </div>
 
-  <!-- የአስተዳዳሪው መልእክት ማሳያ -->
+  <!-- ማሳሰቢያ ቦክስ -->
   <div id="msgAlert">
-    <i class="fa-solid fa-bell"></i> <span id="msgAlertText">መልእክት እዚህ ይወጣል</span>
-  </div>
-
-  <div class="device-box">
-    <div class="status-badge">
-      <i class="fa-solid fa-circle-check"></i> ከ Cloud-Veyon ጋር ተገናኝቷል
-    </div>
-    
-    <h2 style="margin-bottom: 5px;">📱 Target Device</h2>
-    <p style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">ይህ ገጽ የተማሪ ኮምፒውተር ወይም ስልክ ሆኖ ያገለግላል።</p>
-
-    <label style="font-size: 12px; color: #94a3b8; display: block; margin-bottom: 6px;">የመሳሪያው ስም (Device Name)፦</label>
-    <input type="text" id="deviceNameInput" value="የዮሐንስ ኮምፒውተር">
-    <button onclick="updateDeviceName()">ስሙን አድስ (Update)</button>
-
-    <!-- ትክክለኛ ስክሪን ማጋሪያ አዲሱ በተን -->
-    <button id="shareScreenBtn" class="btn-share" onclick="startScreenShare()">
-      <i class="fa-solid fa-desktop"></i> እውነተኛ ስክሪን አጋራ (Start Screen Share)
-    </button>
-
-    <!-- በድብቅ ስክሪኑን የሚይዝ ቪዲዮ -->
-    <!-- አዲሱ (ጥቁር ምስል እንዳይሆን የሚያደርገው) -->
-<video id="localVideo" autoplay playsinline muted style="position: absolute; opacity: 0; pointer-events: none; z-index: -1; width: 640px; height: 360px;"></video>
-    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b;">
-      <p>💡 "እውነተኛ ስክሪን አጋራ" የሚለውን ተጭነህ ስክሪንህን ስትመርጥ በዳሽቦርዱ CCTV ላይ በቀጥታ ይታያል!</p>
-    </div>
+    <i class="fa-solid fa-bell"></i> <span id="msgAlertText"></span>
   </div>
 
   <script src="js/client.js"></script>
+  <script>
+    function logoutStudent() {
+      localStorage.removeItem('currentUser');
+      window.location.href = '/login.html';
+    }
+
+    function smartGoBack() {
+      // ተማሪው በራሱ client.html ገጽ ላይ ብቻ እንዲረጋጋ ማድረግ
+      const currentPath = window.location.pathname;
+      if (currentPath.includes('client.html')) {
+        console.log("ተማሪው በዋናው ፖርታል ላይ ይገኛል፤ ወደ ሌላ ማለፍ አይቻልም።");
+        return; // እዚያው ይቀራል! ወደ መምህር ወይም አድሚን አይሄድም!
+      }
+      window.location.href = '/client.html';
+    }
+  </script>
 </body>
 </html>

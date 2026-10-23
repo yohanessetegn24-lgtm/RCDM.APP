@@ -13,7 +13,7 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e8 // እስከ 100MB ፋይል እንዲያሳልፍ
 });
 
-// 1. Supabase Setup (ከ API በፊተ መሆን አለበት)
+// 1. Supabase Setup
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLIC_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -22,9 +22,17 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 app.use(cors());
 app.use(express.json());
 
+// 3. Password Strength Validation (ፊደል፣ ቁጥር እና ምልክት ማረጋገጫ)
+function isStrongPassword(password) {
+  if (!password || password.length < 6) return false;
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  return hasLetter && hasNumber && hasSymbol;
+}
+
 // ==========================================
-// 3. መጀመሪያ ሲከፈት በግዴታ LOGIN PAGE እንዲመጣ ማድረግ
-// (index: false በማድረግ index.html እንዳይቀድም እንከለክለዋለን)
+// 4. መጀመሪያ ሲከፈት በግዴታ LOGIN PAGE እንዲመጣ ማድረግ
 // ==========================================
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -34,7 +42,7 @@ app.get('/', (req, res) => {
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ==========================================
-// 4. የተጠቃሚዎች LOGIN ማረጋገጫ API
+// 5. የተጠቃሚዎች LOGIN ማረጋገጫ API
 // ==========================================
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
@@ -51,9 +59,10 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'ኢሜይል ወይም የይለፍ ቃል የተሳሳተ ነው!' });
     }
 
-    // ሚናውን (Role) መሰረት አድርጎ መምራት
-    let redirectUrl = '/index.html'; // ለ Admin እና Teacher
-    if (user.role === 'student') {
+    let redirectUrl = '/teacher.html';
+    if (user.role === 'admin') {
+      redirectUrl = '/index.html';
+    } else if (user.role === 'student') {
       redirectUrl = '/client.html';
     }
 
@@ -63,7 +72,8 @@ app.post('/api/login', async (req, res) => {
         id: user.id,
         name: user.full_name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        teacherId: user.teacher_id || null
       },
       redirectUrl: redirectUrl
     });
@@ -73,23 +83,141 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// ==========================================
+// 6. TEACHER ONLY: STUDENTS FULL CRUD APIS
+// ==========================================
+// READ: መምህሩ የራሱን ተማሪዎች ብቻ ማምጫ
+app.get('/api/teacher/students/:teacherId', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, role, created_at')
+      .eq('teacher_id', req.params.teacherId)
+      .eq('role', 'student')
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data || []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// CREATE: መምህሩ አዲስ ተማሪ መመዝገቢያ (ከነ Password ማጣሪያ)
+app.post('/api/teacher/students', async (req, res) => {
+  const { full_name, email, password, teacher_id } = req.body;
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ 
+      error: 'የይለፍ ቃል ቢያንስ 6 ሆሄያት ሆኖ ፊደል፣ ቁጥር እና ልዩ ምልክት (!@#$%^&*) ማካተት አለበት!' 
+    });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{
+        full_name,
+        email,
+        password,
+        role: 'student',
+        teacher_id: teacher_id
+      }])
+      .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// UPDATE: መምህሩ የተማሪውን መረጃ ማስተካከያ (Edit Student)
+app.put('/api/teacher/students/:id', async (req, res) => {
+  const { full_name, email, password } = req.body;
+  const updateData = { full_name, email };
+  
+  if (password && password.trim() !== "") {
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ 
+        error: 'አዲሱ የይለፍ ቃል ቢያንስ 6 ሆሄያት ሆኖ ፊደል፣ ቁጥር እና ልዩ ምልክት ማካተት አለበት!' 
+      });
+    }
+    updateData.password = password;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', req.params.id)
+      .select();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE: መምህሩ ተማሪን ከክፍሉ ማጥፊያ (Delete Student)
+app.delete('/api/teacher/students/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ==========================================
-// CRUD APIS (USERS & DEVICES)
+// 7. ADMIN CRUD APIS (ተማሪዎችን ያገለለ!)
 // ==========================================
+const activeTeachers = new Set();
 
-// 1. Users CRUD
+// Users List (ተማሪዎችን ሳያካትት መምህራን እና አድሚኖችን ብቻ ማሳያ)
 app.get('/api/users', async (req, res) => {
-  const { data, error } = await supabase.from('users').select('id, full_name, email, role, created_at');
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, role, created_at')
+      .neq('role', 'student') // ተማሪዎችን ለአድሚን አታሳይ!
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    const usersWithStatus = data.map(u => ({
+      ...u,
+      isOnline: activeTeachers.has(u.id)
+    }));
+
+    res.json(usersWithStatus);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/users', async (req, res) => {
   const { full_name, email, password, role } = req.body;
-  const { data, error } = await supabase.from('users').insert([{ full_name, email, password, role }]).select();
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data[0]);
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ 
+      error: 'የይለፍ ቃል ቢያንስ 6 ሆሄያት ሆኖ ፊደል፣ ቁጥር እና ልዩ ምልክት ማካተት አለበት!' 
+    });
+  }
+
+  try {
+    const { data, error } = await supabase.from('users').insert([{ full_name, email, password, role }]).select();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/users/:id', async (req, res) => {
@@ -98,116 +226,146 @@ app.delete('/api/users/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// 2. Devices CRUD
+// Devices CRUD (Fail-Safe Fallback)
+let localDevicesList = [
+  {
+    id: "dev-01",
+    device_name: "Lab-1 PC-01",
+    os_type: "Windows",
+    ip_address: "192.168.1.50",
+    mac_address: "00:1A:2B:3C:4D:5E",
+    serial_number: "SN-9823472",
+    assigned_room: "Main Lab",
+    status: "offline"
+  }
+];
+
 app.get('/api/devices', async (req, res) => {
-  const { data, error } = await supabase.from('devices').select('*');
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  try {
+    const { data, error } = await supabase.from('devices').select('*').order('last_seen', { ascending: false });
+    if (!error && data && data.length > 0) return res.json(data);
+  } catch (e) {}
+  res.json(localDevicesList);
 });
 
 app.post('/api/devices', async (req, res) => {
-  const { device_name, mac_address, ip_address, serial_number, os_type, assigned_room } = req.body;
-  const { data, error } = await supabase.from('devices').insert([{
-    device_name, mac_address, ip_address, serial_number, os_type, assigned_room, status: 'offline'
-  }]).select();
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data[0]);
+  const { device_name, os_type, ip_address, mac_address, serial_number, assigned_room } = req.body;
+  const newDevice = {
+    id: "dev-" + Date.now(),
+    device_name: device_name || 'Lab PC',
+    os_type: os_type || 'Windows',
+    ip_address: ip_address || '-',
+    mac_address: mac_address || '-',
+    serial_number: serial_number || '-',
+    assigned_room: assigned_room || 'Main Lab',
+    status: 'offline'
+  };
+
+  try {
+    const { data, error } = await supabase.from('devices').insert([newDevice]).select();
+    if (!error && data) {
+      localDevicesList.unshift(data[0]);
+      return res.json(data[0]);
+    }
+  } catch (e) {}
+
+  localDevicesList.unshift(newDevice);
+  res.json(newDevice);
 });
 
 app.delete('/api/devices/:id', async (req, res) => {
-  const { error } = await supabase.from('devices').delete().eq('id', req.params.id);
-  if (error) return res.status(500).json({ error: error.message });
+  const id = req.params.id;
+  try { await supabase.from('devices').delete().eq('id', id); } catch (e) {}
+  localDevicesList = localDevicesList.filter(d => d.id !== id);
   res.json({ success: true });
 });
 
 // ==========================================
-// 5. WEBSOCKET LOGIC (SOCKET.IO)
+// 8. WEBSOCKET LOGIC (ROOM ISOLATION & CCTV)
 // ==========================================
 const connectedDevices = new Map(); // socketId -> deviceData
 
 io.on('connection', (socket) => {
   console.log(`🔌 አዲስ ግንኙነት ተፈጠረ: ${socket.id}`);
 
-  // 1. Master Dashboard ሲገናኝ
-  socket.on('master:join', () => {
-    socket.join('master-room');
-    console.log('👑 Master Dashboard ተገናኝቷል');
-    const devicesList = Array.from(connectedDevices.values());
-    socket.emit('master:devices-list', devicesList);
+  // 1. መምህሩ ሲገናኝ
+  socket.on('master:join', (data) => {
+    const teacherId = data && data.teacherId ? data.teacherId : null;
+    
+    if (teacherId) {
+      activeTeachers.add(teacherId);
+      socket.teacherId = teacherId;
+      socket.join(`room_${teacherId}`);
+      socket.myRoom = `room_${teacherId}`;
+      console.log(`🟢 መምህር Online ሆነ: ${teacherId}`);
+
+      // ለመምህሩ የራሱን ተማሪዎች ብቻ ልክለት
+      const myStudents = Array.from(connectedDevices.values()).filter(d => d.teacherId === teacherId);
+      socket.emit('master:devices-list', myStudents);
+    } else {
+      socket.join('admin_isolated_room');
+      socket.myRoom = 'admin_isolated_room';
+    }
   });
 
-  // 2. ስልክ ወይም ተማሪ ኮምፒውተር ራሱን ሲያስመዘግብ
+  // 2. ተማሪ ኮምፒውተር ራሱን ሲያስመዘግብ
   socket.on('device:register', async (deviceData) => {
-    socket.join('clients-room');
+    const teacherId = deviceData.teacherId || 'default_room';
+    socket.join(`room_${teacherId}`);
+
     const fullDeviceData = {
       socketId: socket.id,
       deviceId: deviceData.deviceId || socket.id,
-      name: deviceData.name || 'ያልታወቀ መሳሪያ',
-      os: deviceData.os || 'Web',
-      battery: deviceData.battery || 100,
+      name: deviceData.name || 'ያልታወቀ ተማሪ',
+      os: deviceData.os || 'Windows',
+      battery: 100,
+      teacherId: teacherId,
       isLocked: false,
       status: 'online'
     };
 
     connectedDevices.set(socket.id, fullDeviceData);
-    console.log(`📱 አዲስ መሳሪያ ተመዘገበ: ${fullDeviceData.name} (${socket.id})`);
+    console.log(`🎓 ተማሪ (${fullDeviceData.name}) ወደ መምህሩ ክፍል ገባ: room_${teacherId}`);
 
-    try {
-      await supabase.from('devices').upsert({
-        id: fullDeviceData.deviceId,
-        device_name: fullDeviceData.name,
-        os_type: fullDeviceData.os,
-        battery_level: fullDeviceData.battery,
-        status: 'online',
-        last_seen: new Date().toISOString()
-      });
-    } catch (e) {
-      console.log('DB sync notice:', e.message);
-    }
-
-    io.to('master-room').emit('master:device-connected', fullDeviceData);
+    io.to(`room_${teacherId}`).emit('master:device-connected', fullDeviceData);
   });
 
-  // 3. ከ Master Dashboard ወደ መሳሪያ የሚላኩ ትዕዛዞች
+  // 3. ከ Dashboard የሚላኩ ትዕዛዞች
   socket.on('master:send-command', (data) => {
     const { targetSocketId, command, payload } = data;
-    console.log(`⚡ ትዕዛዝ ተልኳል [${command}] ወደ መሳሪያ: ${targetSocketId || 'ALL'}`);
-
     if (targetSocketId) {
       io.to(targetSocketId).emit('client:execute-command', { command, payload });
-    } else {
-      socket.to('clients-room').emit('client:execute-command', { command, payload });
+    } else if (socket.myRoom) {
+      socket.to(socket.myRoom).emit('client:execute-command', { command, payload });
     }
   });
 
-  // 4. መሳሪያው ለተላከው ትዕዛዝ ውጤት ሲመልስ
-  socket.on('client:command-result', (result) => {
-    console.log(`✅ የስራ ውጤት ደርሷል:`, result);
-    io.to('master-room').emit('master:command-ack', result);
-  });
-
-  // 5. ተማሪው ለ CCTV ክትትል የስክሪን ምስል በየሰከንዱ ሲልክ
+  // 4. የተማሪው ስክሪን ምስል (CCTV Frame ለመምህሩ ብቻ)
   socket.on('client:stream-frame', (frameData) => {
-    io.to('master-room').emit('master:device-frame', frameData);
+    const dev = connectedDevices.get(socket.id);
+    if (dev && dev.teacherId) {
+      io.to(`room_${dev.teacherId}`).emit('master:device-frame', frameData);
+    }
   });
 
-  // 6. የአስተማሪውን ስክሪን ለሁሉም ተማሪዎች ማስተላለፍ (Live Demonstration)
+  // 5. የአስተማሪው Demonstration ስክሪን
   socket.on('master:broadcast-frame', (frameData) => {
-    socket.to('clients-room').emit('master:broadcast-frame', frameData);
+    if (socket.myRoom) {
+      socket.to(socket.myRoom).emit('master:broadcast-frame', frameData);
+    }
   });
 
-  // 7. መሳሪያው ሲቋረጥ
-  socket.on('disconnect', async () => {
+  // 6. ግንኙነት ሲቋረጥ
+  socket.on('disconnect', () => {
+    if (socket.teacherId) {
+      activeTeachers.delete(socket.teacherId);
+      console.log(`🔴 መምህር Offline ሆነ: ${socket.teacherId}`);
+    }
+
     const device = connectedDevices.get(socket.id);
     if (device) {
-      console.log(`❌ መሳሪያ ተቋረጠ: ${device.name}`);
       connectedDevices.delete(socket.id);
-      
-      io.to('master-room').emit('master:device-disconnected', socket.id);
-
-      try {
-        await supabase.from('devices').update({ status: 'offline' }).eq('id', device.deviceId);
-      } catch (e) {}
+      io.to(`room_${device.teacherId}`).emit('master:device-disconnected', socket.id);
     }
   });
 });
@@ -215,7 +373,7 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`===============================================`);
-  console.log(`🚀 Cloud-Veyon Server እየሰራ ነው በ Port: ${PORT}`);
+  console.log(`🚀 Secure Cloud-Veyon Server እየሰራ ነው በ Port: ${PORT}`);
   console.log(`🌐 Login Page: http://localhost:${PORT}`);
   console.log(`===============================================`);
 });

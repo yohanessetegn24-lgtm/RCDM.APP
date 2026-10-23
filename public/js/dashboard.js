@@ -376,3 +376,117 @@ function sendFileToStudents() {
 
   reader.readAsDataURL(file);
 }
+
+// ==========================================
+// ADMIN: TEACHERS LIST, SEARCH & REAL-TIME STATUS
+// ==========================================
+let allTeachersData = [];
+
+// አድሚኑ ገጹን ሲከፍት መምህራንን ከዳታቤዝ ማምጣት
+document.addEventListener("DOMContentLoaded", () => {
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  if (user.role === 'admin') {
+    loadTeachersList();
+  }
+});
+
+async function loadTeachersList() {
+  const grid = document.getElementById('teachersGrid');
+  const countEl = document.getElementById('teachers-count');
+  if (!grid) return;
+
+  grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 40px;">የመምህራን ዝርዝር በመጫን ላይ...</div>';
+
+  try {
+    const res = await fetch('/api/users');
+    const users = await res.json();
+    
+    // መምህራንን ብቻ መለየት (Filter Teachers)
+    allTeachersData = users.filter(u => u.role === 'teacher');
+    if (countEl) countEl.innerText = `የተመዘገቡ መምህራን፡ ${allTeachersData.length}`;
+
+    renderTeachersGrid(allTeachersData);
+  } catch (err) {
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: red;">መምህራንን መጫን አልተቻለም!</div>';
+  }
+}
+
+function renderTeachersGrid(teachers) {
+  const grid = document.getElementById('teachersGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  if (teachers.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #64748b;">
+        <i class="fa-solid fa-user-slash" style="font-size: 48px; margin-bottom: 12px; display:block;"></i>
+        <h3>ምንም መምህር አልተገኘም</h3>
+      </div>
+    `;
+    return;
+  }
+
+  teachers.forEach(t => {
+    // የመምህሩ አምሳያ ፎቶ በራስ-ሰር ማመንጨት
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(t.full_name)}`;
+    
+    // በሰርቨሩ ውስጥ መምህሩ Online መሆኑን ማረጋገጥ (የጊዜያዊ ሲሙሌሽን ማሳያ)
+    const isOnline = t.isOnline || false; 
+
+    const card = document.createElement('div');
+    card.className = 'device-card';
+    card.style.cssText = 'background: #1e293b; border-radius: 14px; border: 1px solid #334155; padding: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: space-between;';
+
+    card.innerHTML = `
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="${avatarUrl}" style="width: 50px; height: 50px; border-radius: 50%; background: #0f172a; border: 2px solid #38bdf8;">
+            <div>
+              <h3 style="margin: 0; font-size: 16px; color: white;">${t.full_name}</h3>
+              <p style="margin: 3px 0 0; font-size: 12px; color: #94a3b8;">${t.email}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #0f172a; padding: 10px 14px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; color: #94a3b8;">ሁኔታ (Status):</span>
+          <span style="font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 6px; color: ${isOnline ? '#22c55e' : '#ef4444'};">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${isOnline ? '#22c55e' : '#ef4444'}; display: inline-block;"></span>
+            ${isOnline ? 'Online (ክፍል ውስጥ ናቸው)' : 'Offline (Last seen recently)'}
+          </span>
+        </div>
+      </div>
+
+      <!-- አድሚኑ የመምህሩን ክፍል ለመቆጣጠር የሚነካው አዝራር -->
+      <button onclick="inspectTeacherClassroom('${t.id}', '${t.full_name}')" 
+              style="width: 100%; padding: 10px; background: linear-gradient(135deg, #0284c7, #2563eb); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;">
+        <i class="fa-solid fa-door-open"></i> ክፍሉን ተቆጣጠር (Inspect Lab)
+      </button>
+    `;
+
+    grid.appendChild(card);
+  });
+}
+
+// መምህራንን በ Search Bar መፈለጊያ
+function filterTeachers() {
+  const query = document.getElementById('teacherSearchInput').value.toLowerCase();
+  const filtered = allTeachersData.filter(t => 
+    t.full_name.toLowerCase().includes(query) || 
+    t.email.toLowerCase().includes(query)
+  );
+  renderTeachersGrid(filtered);
+}
+
+// አድሚኑ የአንድን መምህር ክፍል ጠቅ አድርጎ ሲገባ
+function inspectTeacherClassroom(teacherId, teacherName) {
+  // አድሚኑ የመረጠውን መምህር መረጃ ይዞ ወደ teacher.html ገብቶ ይቆጣጠራል!
+  const adminInspector = {
+    id: teacherId,
+    name: `${teacherName} (Admin Inspector)`,
+    role: 'teacher'
+  };
+  localStorage.setItem('currentUser', JSON.stringify(adminInspector));
+  window.location.href = '/teacher.html';
+}
